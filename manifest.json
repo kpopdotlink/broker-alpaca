@@ -1,0 +1,23 @@
+{
+    "id": "broker-alpaca",
+    "name": "Alpaca Markets Broker",
+    "version": "0.1.0",
+    "description": "Alpaca Markets integration for commission-free stock and ETF trading",
+    "type": "broker",
+    "permissions": [
+        "broker:read",
+        "broker:trade",
+        "secrets:read",
+        "network:https"
+    ],
+    "allowed_hosts": [
+        "api.alpaca.markets",
+        "paper-api.alpaca.markets",
+        "data.alpaca.markets"
+    ],
+    "entry_point": "broker_alpaca.wasm",
+    "api_version": "0.3.0",
+    "author": "KL Investment",
+    "license": "MIT",
+    "repository": "https://github.com/kpopdotlink/broker-alpaca"
+}
