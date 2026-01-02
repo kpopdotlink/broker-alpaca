@@ -10,8 +10,11 @@
 //! - APCA-API-KEY-ID: Your API Key
 //! - APCA-API-SECRET-KEY: Your API Secret
 
-mod http;
+// Allow dead_code for structs/fields prepared for future API integration
+#![allow(dead_code)]
+
 mod alpaca;
+mod http;
 
 use chrono::Utc;
 use std::collections::HashMap;
@@ -62,7 +65,7 @@ pub extern "C" fn alloc(len: i32) -> i32 {
 pub extern "C" fn initialize(ptr: i32, len: i32) -> u64 {
     let config_json: serde_json::Value = parse_request(ptr, len);
 
-    let mut state = STATE.lock().unwrap();
+    let mut state = STATE.lock().unwrap_or_else(|e| e.into_inner());
 
     // Parse configuration
     let api_key = config_json
@@ -91,13 +94,11 @@ pub extern "C" fn initialize(ptr: i32, len: i32) -> u64 {
                 "message": format!("Alpaca plugin initialized ({})", if is_paper { "paper" } else { "live" })
             }))
         }
-        _ => {
-            serialize_response(&serde_json::json!({
-                "success": false,
-                "error": "Missing required configuration: api_key and api_secret",
-                "requires_auth": true
-            }))
-        }
+        _ => serialize_response(&serde_json::json!({
+            "success": false,
+            "error": "Missing required configuration: api_key and api_secret",
+            "requires_auth": true
+        })),
     }
 }
 
@@ -106,21 +107,21 @@ pub extern "C" fn initialize(ptr: i32, len: i32) -> u64 {
 pub extern "C" fn get_accounts(ptr: i32, len: i32) -> u64 {
     let _req: GetAccountsRequest = parse_request(ptr, len);
 
-    let state = STATE.lock().unwrap();
+    let state = STATE.lock().unwrap_or_else(|e| e.into_inner());
 
     let client = match state.client.as_ref() {
         Some(c) => c,
         None => {
             return serialize_response(&GetAccountsResponse {
-                accounts: vec![create_error_account("Plugin not initialized. Provide api_key and api_secret.")],
+                accounts: vec![create_error_account(
+                    "Plugin not initialized. Provide api_key and api_secret.",
+                )],
             });
         }
     };
 
     match client.list_accounts() {
-        Ok(accounts) => {
-            serialize_response(&GetAccountsResponse { accounts })
-        }
+        Ok(accounts) => serialize_response(&GetAccountsResponse { accounts }),
         Err(e) => {
             eprintln!("[broker-alpaca] Failed to fetch accounts: {}", e);
             serialize_response(&GetAccountsResponse {
@@ -135,7 +136,7 @@ pub extern "C" fn get_accounts(ptr: i32, len: i32) -> u64 {
 pub extern "C" fn get_positions(ptr: i32, len: i32) -> u64 {
     let _req: GetPositionsRequest = parse_request(ptr, len);
 
-    let state = STATE.lock().unwrap();
+    let state = STATE.lock().unwrap_or_else(|e| e.into_inner());
 
     let client = match state.client.as_ref() {
         Some(c) => c,
@@ -145,9 +146,7 @@ pub extern "C" fn get_positions(ptr: i32, len: i32) -> u64 {
     };
 
     match client.get_positions() {
-        Ok(positions) => {
-            serialize_response(&GetPositionsResponse { positions })
-        }
+        Ok(positions) => serialize_response(&GetPositionsResponse { positions }),
         Err(e) => {
             eprintln!("[broker-alpaca] Failed to fetch positions: {}", e);
             serialize_response(&GetPositionsResponse { positions: vec![] })
@@ -159,7 +158,7 @@ pub extern "C" fn get_positions(ptr: i32, len: i32) -> u64 {
 #[no_mangle]
 pub extern "C" fn submit_order(ptr: i32, len: i32) -> u64 {
     let req: SubmitOrderRequest = parse_request(ptr, len);
-    let mut state = STATE.lock().unwrap();
+    let mut state = STATE.lock().unwrap_or_else(|e| e.into_inner());
 
     let client = match state.client.as_ref() {
         Some(c) => c,
@@ -198,7 +197,7 @@ pub extern "C" fn cancel_order(ptr: i32, len: i32) -> u64 {
     }
 
     let req: CancelOrderRequest = parse_request(ptr, len);
-    let state = STATE.lock().unwrap();
+    let state = STATE.lock().unwrap_or_else(|e| e.into_inner());
 
     let client = match state.client.as_ref() {
         Some(c) => c,
@@ -211,18 +210,14 @@ pub extern "C" fn cancel_order(ptr: i32, len: i32) -> u64 {
     };
 
     match client.cancel_order(&req.order_id) {
-        Ok(()) => {
-            serialize_response(&serde_json::json!({
-                "success": true,
-                "order_id": req.order_id
-            }))
-        }
-        Err(e) => {
-            serialize_response(&serde_json::json!({
-                "success": false,
-                "error": e
-            }))
-        }
+        Ok(()) => serialize_response(&serde_json::json!({
+            "success": true,
+            "order_id": req.order_id
+        })),
+        Err(e) => serialize_response(&serde_json::json!({
+            "success": false,
+            "error": e
+        })),
     }
 }
 
@@ -276,7 +271,10 @@ fn create_error_order(req: &SubmitOrderRequest, error: &str) -> Order {
         filled_quantity: 0.0,
         extensions: Some({
             let mut map = HashMap::new();
-            map.insert("error".to_string(), serde_json::Value::String(error.to_string()));
+            map.insert(
+                "error".to_string(),
+                serde_json::Value::String(error.to_string()),
+            );
             map
         }),
         persona_id: req.order.persona_id.clone(),

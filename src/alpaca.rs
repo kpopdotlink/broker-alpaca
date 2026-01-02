@@ -3,7 +3,7 @@
 //! Implements Alpaca's Trading API with API Key authentication.
 //! Documentation: https://docs.alpaca.markets/
 
-use crate::http::{HttpMethod, HttpRequest, execute};
+use crate::http::{execute, HttpMethod, HttpRequest};
 use chrono::{DateTime, Utc};
 use models::order::{Order, OrderRequest, OrderSide, OrderStatus, OrderType};
 use models::portfolio::{AccountBalance, AccountSummary, Position};
@@ -22,7 +22,11 @@ pub struct AlpacaClient {
 
 impl AlpacaClient {
     pub fn new(api_key: String, api_secret: String, is_paper: bool) -> Self {
-        let base_url = if is_paper { PAPER_API_URL } else { LIVE_API_URL };
+        let base_url = if is_paper {
+            PAPER_API_URL
+        } else {
+            LIVE_API_URL
+        };
         Self {
             api_key,
             api_secret,
@@ -69,8 +73,7 @@ impl AlpacaClient {
     ) -> Result<T, String> {
         let url = format!("{}{}", self.base_url, path);
 
-        let body_str = serde_json::to_string(body)
-            .map_err(|e| e.to_string())?;
+        let body_str = serde_json::to_string(body).map_err(|e| e.to_string())?;
 
         let response = execute(HttpRequest {
             method: HttpMethod::Post,
@@ -132,9 +135,7 @@ impl AlpacaClient {
 
         let account: AlpacaAccount = self.api_get("/v2/account")?;
 
-        let parse_amount = |s: &str| -> f64 {
-            s.parse::<f64>().unwrap_or(0.0)
-        };
+        let parse_amount = |s: &str| -> f64 { s.parse::<f64>().unwrap_or(0.0) };
 
         let positions = self.get_positions().unwrap_or_default();
 
@@ -154,13 +155,25 @@ impl AlpacaClient {
             updated_at: Utc::now(),
             extensions: Some({
                 let mut map = HashMap::new();
-                map.insert("account_id".to_string(), serde_json::Value::String(account.id));
-                map.insert("status".to_string(), serde_json::Value::String(account.status));
+                map.insert(
+                    "account_id".to_string(),
+                    serde_json::Value::String(account.id),
+                );
+                map.insert(
+                    "status".to_string(),
+                    serde_json::Value::String(account.status),
+                );
                 if let Some(pdt) = account.pattern_day_trader {
-                    map.insert("pattern_day_trader".to_string(), serde_json::Value::Bool(pdt));
+                    map.insert(
+                        "pattern_day_trader".to_string(),
+                        serde_json::Value::Bool(pdt),
+                    );
                 }
                 if let Some(count) = account.daytrade_count {
-                    map.insert("daytrade_count".to_string(), serde_json::Value::Number(count.into()));
+                    map.insert(
+                        "daytrade_count".to_string(),
+                        serde_json::Value::Number(count.into()),
+                    );
                 }
                 map
             }),
@@ -291,10 +304,14 @@ impl AlpacaClient {
             average_filled_price: resp.filled_avg_price.and_then(|p| p.parse().ok()),
             extensions: Some({
                 let mut map = HashMap::new();
-                map.insert("client_order_id".to_string(),
-                    serde_json::Value::String(resp.client_order_id));
-                map.insert("alpaca_status".to_string(),
-                    serde_json::Value::String(resp.status));
+                map.insert(
+                    "client_order_id".to_string(),
+                    serde_json::Value::String(resp.client_order_id),
+                );
+                map.insert(
+                    "alpaca_status".to_string(),
+                    serde_json::Value::String(resp.status),
+                );
                 map
             }),
             persona_id: order.persona_id.clone(),
@@ -378,10 +395,14 @@ impl AlpacaClient {
             average_filled_price: resp.filled_avg_price.and_then(|p| p.parse().ok()),
             extensions: Some({
                 let mut map = HashMap::new();
-                map.insert("client_order_id".to_string(),
-                    serde_json::Value::String(resp.client_order_id));
-                map.insert("alpaca_status".to_string(),
-                    serde_json::Value::String(resp.status));
+                map.insert(
+                    "client_order_id".to_string(),
+                    serde_json::Value::String(resp.client_order_id),
+                );
+                map.insert(
+                    "alpaca_status".to_string(),
+                    serde_json::Value::String(resp.status),
+                );
                 map
             }),
             persona_id: String::new(),

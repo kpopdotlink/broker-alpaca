@@ -42,8 +42,13 @@ impl HttpResponse {
     }
 
     pub fn json<T: serde::de::DeserializeOwned>(&self) -> Result<T, String> {
-        serde_json::from_str(&self.body)
-            .map_err(|e| format!("JSON parse error: {} - body: {}", e, &self.body[..self.body.len().min(200)]))
+        serde_json::from_str(&self.body).map_err(|e| {
+            format!(
+                "JSON parse error: {} - body: {}",
+                e,
+                &self.body[..self.body.len().min(200)]
+            )
+        })
     }
 }
 
@@ -60,9 +65,8 @@ pub fn execute(request: HttpRequest) -> HttpResponse {
     let res_ptr = (result >> 32) as i32;
     let res_len = (result & 0xFFFFFFFF) as i32;
 
-    let response_slice = unsafe {
-        std::slice::from_raw_parts(res_ptr as *const u8, res_len as usize)
-    };
+    let response_slice =
+        unsafe { std::slice::from_raw_parts(res_ptr as *const u8, res_len as usize) };
 
     serde_json::from_slice(response_slice).unwrap_or_else(|e| HttpResponse {
         status: 0,
